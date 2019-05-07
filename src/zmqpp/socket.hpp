@@ -41,6 +41,7 @@ typedef context     context_t;
 typedef message     message_t;
 
 #if (ZMQ_VERSION_MAJOR >= 4)
+
 namespace event
 {
 	const int connected        = ZMQ_EVENT_CONNECTED;       /*<! connection established */
@@ -53,7 +54,7 @@ namespace event
 	const int closed           = ZMQ_EVENT_CLOSED;          /*<! connection closed */
 	const int close_failed     = ZMQ_EVENT_CLOSE_FAILED;    /*<! connection couldn't be closed */
 	const int disconnected     = ZMQ_EVENT_DISCONNECTED;    /*<! broken session */
-	const int monitor_stopped  = ZMQ_EVENT_MONITOR_STOPPED; /*<! this monitor socket will not receive event anymore */
+	const int monitor_stopped  = ZMQ_EVENT_MONITOR_STOPPED; /*<! this monitor socket won't receive events anymore */
 	const int all              = ZMQ_EVENT_ALL;             /*<! all event flags */
 }
 #endif
@@ -252,7 +253,7 @@ public:
 	 */
 	bool send(signal sig, bool dont_block = false);
 
-    /**
+	/**
 	 * If there is a message ready then we read a signal from it.
 	 *
 	 * If dont_block is true and we are unable to get the signal then this

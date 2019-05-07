@@ -206,7 +206,7 @@ if( ZMQPP_BUILD_TESTS )
   add_executable( zmqpp-test-runner
     src/tests/test_actor.cpp
     src/tests/test_context.cpp
-    src/tests/test_inet.cpp
+    src/tests/test_endian.cpp
     src/tests/test_load.cpp
     src/tests/test_message.cpp
     src/tests/test_message_stream.cpp

@@ -68,6 +68,10 @@ BOOST_AUTO_TEST_CASE(simple_pull_push)
 
 BOOST_AUTO_TEST_CASE(multiple_socket)
 {
+    zmqpp::message msg_out("hello");
+    msg_out << "hello world!";
+    zmqpp::message msg_out2 = msg_out.copy();
+
     zmqpp::context context;
 
     zmqpp::socket pub(context, zmqpp::socket_type::pub);
@@ -80,9 +84,6 @@ BOOST_AUTO_TEST_CASE(multiple_socket)
     zmqpp::socket sub2(context, zmqpp::socket_type::sub);
     sub2.connect("inproc://test");
     sub2.subscribe("hello");
-
-    BOOST_CHECK(pub.send("hello", zmqpp::socket::send_more));
-    BOOST_CHECK(pub.send("hello world!"));
 
     zmqpp::reactor reactor;
 
@@ -97,20 +98,25 @@ BOOST_AUTO_TEST_CASE(multiple_socket)
     reactor.add(sub, std::bind(callable, &test1, 1));
     reactor.add(sub2, std::bind(callable, &test2, 2));
     reactor.add(pub, std::bind(callable, &test3, 3), zmqpp::poller::poll_out);
+
+    // --- test 1 ---
+
+    BOOST_CHECK(pub.send(msg_out));
+
     BOOST_CHECK(reactor.poll(max_poll_timeout));
 
     BOOST_CHECK_EQUAL(1, test1);
     BOOST_CHECK_EQUAL(2, test2);
     BOOST_CHECK_EQUAL(3, test3);
 
-
+    // --- test 2 ---
     test1 = 0;
     test2 = 0;
     test3 = 0;
 
     reactor.remove(sub);
-    BOOST_CHECK(pub.send("hello", zmqpp::socket::send_more));
-    BOOST_CHECK(pub.send("hello world!"));
+
+    BOOST_CHECK(pub.send(msg_out2));
 
     BOOST_CHECK(reactor.poll(max_poll_timeout));
 
@@ -121,6 +127,10 @@ BOOST_AUTO_TEST_CASE(multiple_socket)
 
 BOOST_AUTO_TEST_CASE(remove_socket_in_handler)
 {
+    zmqpp::message msg_out("hello");
+    msg_out << "hello world!";
+    zmqpp::message msg_out2 = msg_out.copy();
+
     zmqpp::context context;
 
     zmqpp::socket pub(context, zmqpp::socket_type::pub);
@@ -134,9 +144,6 @@ BOOST_AUTO_TEST_CASE(remove_socket_in_handler)
     sub2.connect("inproc://test");
     sub2.subscribe("hello");
 
-    BOOST_CHECK(pub.send("hello", zmqpp::socket::send_more));
-    BOOST_CHECK(pub.send("hello world!"));
-
     zmqpp::reactor reactor;
 
     int test1 = 0;
@@ -144,24 +151,28 @@ BOOST_AUTO_TEST_CASE(remove_socket_in_handler)
     auto callable = [&](int *value_to_update, int val) -> void
     {
 	if (val == 1)
-	  {
 	    reactor.remove(sub);
-	  }
 	
         *value_to_update = val;
     };
 
     reactor.add(sub, std::bind(callable, &test1, 1));
     reactor.add(sub2, std::bind(callable, &test2, 2));
+
+    // --- test 1 ---
+    BOOST_CHECK(pub.send(msg_out));
+
     BOOST_CHECK(reactor.poll(max_poll_timeout));
 
     BOOST_CHECK_EQUAL(1, test1);
     BOOST_CHECK_EQUAL(2, test2);
     
-    test1 = test2 = 0;
+    // --- test 2 ---
+    test1 = 0;
+    test2 = 0;
 
-    BOOST_CHECK(pub.send("hello", zmqpp::socket::send_more));
-    BOOST_CHECK(pub.send("hello world!"));
+    BOOST_CHECK(pub.send(msg_out2));
+
     BOOST_CHECK(reactor.poll(max_poll_timeout));
 
     BOOST_CHECK_EQUAL(0, test1);

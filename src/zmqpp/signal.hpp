@@ -16,10 +16,9 @@
 
 namespace zmqpp
 {
-
     /**
      * Signal is a 8 bytes integer. 7 first bytes acts as a magic number so we can distinguish signal
-     * from other message. The last byte is the signal's value.
+     * from other message. The last byte is the signal value.
      */
     ZMQPP_COMPARABLE_ENUM signal : int64_t
     {
@@ -42,7 +41,6 @@ namespace zmqpp
 
 	test = (header << 8) | 0xFF
     };
-
 }
 
 

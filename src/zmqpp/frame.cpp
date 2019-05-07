@@ -20,8 +20,8 @@
 #include "exception.hpp"
 #include "frame.hpp"
 
-namespace zmqpp {
-
+namespace zmqpp
+{
 frame::frame()
 	: _sent( false )
 {
@@ -31,7 +31,7 @@ frame::frame()
 	}
 }
 
-frame::frame(size_t const size)
+frame::frame(std::size_t size)
 	: _sent( false )
 {
 	if( 0 != zmq_msg_init_size( &_msg, size ) )
@@ -40,7 +40,8 @@ frame::frame(size_t const size)
 	}
 }
 
-frame::frame(void const* part, size_t const size)
+// TODO Check if zmq has a copy interface (so we can avoid the copy here)!)
+frame::frame(void const* part, std::size_t size)
 	: _sent( false )
 {
 	if( 0 != zmq_msg_init_size( &_msg, size ) )
@@ -52,7 +53,7 @@ frame::frame(void const* part, size_t const size)
 	memcpy( msg_data, part, size );
 }
 
-frame::frame(void* part, size_t const size, zmq_free_fn *ffn, void *hint)
+frame::frame(void* part, std::size_t size, zmq_free_fn *ffn, void *hint)
 	: _sent( false )
 {
 	if( 0 != zmq_msg_init_data( &_msg, part, size, ffn, hint ) )

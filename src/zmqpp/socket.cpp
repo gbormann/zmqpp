@@ -119,7 +119,8 @@ void socket::close()
 
 bool socket::send(std::string const& str, bool dont_block/* = false */)
 {
-	return send(str, (dont_block) ? socket::dont_wait : socket::normal);
+	message msg(str);
+	return send(msg, (dont_block) ? socket::dont_wait : socket::normal);
 }
 
 bool socket::receive(std::string &str, bool dont_block /* = false */)
@@ -141,14 +142,15 @@ bool socket::receive(zmqpp::signal &sig, bool dont_block /* = false */)
     if (ret)
     {
         assert(msg.is_signal());
-        msg.get(sig, 0);
+        sig = msg.get<zmqpp::signal>(0);
     }
     return ret;
 }
 
-bool socket::send(message& message, bool const dont_block /* = false */)
+bool socket::send(message& msg, bool const dont_block /* = false */)
 {
-	size_t parts = message.parts();
+	using std::swap;
+	size_t parts = msg.parts();
 	if (parts == 0)
 	{
 		throw std::invalid_argument("sending requires messages have at least one part");
@@ -162,16 +164,16 @@ bool socket::send(message& message, bool const dont_block /* = false */)
 		if(i < (parts - 1)) { flag |= socket::send_more; }
 
 #if (ZMQ_VERSION_MAJOR == 2)
-		int result = zmq_send( _socket, &message.raw_msg(i), flag );
+		int result = zmq_send( _socket, &msg.raw_msg(i), flag );
 #elif (ZMQ_VERSION_MAJOR < 3) || ((ZMQ_VERSION_MAJOR == 3) && (ZMQ_VERSION_MINOR < 2))
-		int result = zmq_sendmsg( _socket, &message.raw_msg(i), flag );
+		int result = zmq_sendmsg( _socket, &msg.raw_msg(i), flag );
 #else
-		int result = zmq_msg_send( &message.raw_msg(i), _socket, flag );
+		int result = zmq_msg_send( &msg.raw_msg(i), _socket, flag );
 #endif
 
 		if (result < 0)
 		{
-			// the zmq framework should not block if the first part is accepted
+			// the zmq framework shouldn't block if the first part is accepted
 			// so we should only ever get this error on the first part
 			if((0 == i) && (EAGAIN == zmq_errno()))
 			{
@@ -198,22 +200,23 @@ bool socket::send(message& message, bool const dont_block /* = false */)
 			throw zmq_internal_exception();
 		}
 
-		message.sent(i);
+		msg.sent(i);
 	}
 
 	// Leave message reference in a stable state
-	zmqpp::message local;
-	std::swap(local, message);
+	message dummy;
+	swap(dummy, msg);
 	return true;
 }
 
-bool socket::receive(message& message, bool const dont_block /* = false */)
+bool socket::receive(message& msg, bool const dont_block /* = false */)
 {
-	if (message.parts() > 0)
+	using std::swap;
+	if (msg.parts() > 0)
 	{
 		// swap and discard old message
-		zmqpp::message local;
-		std::swap(local, message);
+		message dummy;
+		swap(dummy, msg);
 	}
 
 	int flags = (dont_block) ? socket::dont_wait : socket::normal;
@@ -231,21 +234,20 @@ bool socket::receive(message& message, bool const dont_block /* = false */)
 
 		if(result < 0)
 		{
-			if ((0 == message.parts()) && (EAGAIN == zmq_errno()))
+			if ((0 == msg.parts()) && (EAGAIN == zmq_errno()))
 			{
 				return false;
 			}
 
 			if(EINTR == zmq_errno())
 			{
-				if (0 == message.parts())
+				if (0 == msg.parts())
 				{
 					return false;
 				}
 
-				// If we have an interrupt but it's not on the first part then we
-				// know we can safely pull out the rest of the message as it will
-				// not be blocking
+				// If we have an interrupt but it's not on the first part then we know
+				// we can safely pull out the rest of the message as it won't be blocking
 				continue;
 			}
 
@@ -254,7 +256,7 @@ bool socket::receive(message& message, bool const dont_block /* = false */)
 			throw zmq_internal_exception();
 		}
 
-		zmq_msg_t& dest = message.raw_new_msg();
+		zmq_msg_t& dest = msg.raw_new_msg();
 		zmq_msg_move(&dest, &_recv_buffer);
 
 		get(socket_option::receive_more, more);
@@ -262,7 +264,6 @@ bool socket::receive(message& message, bool const dont_block /* = false */)
 
 	return true;
 }
-
 
 bool socket::send(std::string const& string, int const flags /* = NORMAL */)
 {
@@ -810,8 +811,8 @@ socket::socket(socket&& source) NOEXCEPT
 	, _type(source._type)
 	, _recv_buffer()
 {
-	// we steal the zmq_msg_t from the valid socket, we only init our own because it's cheap
-	// and zmq_msg_move does a valid check
+	// we steal the zmq_msg_t from the valid socket, we only init our own because it's
+	// cheap and zmq_msg_move does a valid check
 	zmq_msg_init(&_recv_buffer);
 	zmq_msg_move(&_recv_buffer, &source._recv_buffer);
 
@@ -825,8 +826,8 @@ socket& socket::operator=(socket&& source) NOEXCEPT
 
 	_type = source._type; // just clone?
 
-	// we steal the zmq_msg_t from the valid socket, we only init our own because it's cheap
-	// and zmq_msg_move does a valid check
+	// we steal the zmq_msg_t from the valid socket, we only init our own because it's
+	// cheap and zmq_msg_move does a valid check
 	zmq_msg_init(&_recv_buffer);
 	zmq_msg_move(&_recv_buffer, &source._recv_buffer);
 
@@ -845,7 +846,7 @@ socket::operator void*() const
 	return _socket;
 }
 
-void socket::track_message(message const& /* message */, uint32_t const parts, bool& should_delete)
+void socket::track_message(message const& /* msg */, uint32_t const parts, bool& should_delete)
 {
 	if (parts == 0)
 	{
@@ -883,11 +884,7 @@ signal socket::wait()
         while(!receive(msg));
 
         if (msg.is_signal())
-        {
-            signal sig;
-            msg.get(sig, 0);
-            return sig;
-        }
+            return msg.get<signal>(0);
     }
 }
 

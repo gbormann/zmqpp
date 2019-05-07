@@ -7,29 +7,30 @@
  * Copyright (c) 2011-2015 Contributors as noted in the AUTHORS file.
  */
 
-
-#include <boost/test/unit_test.hpp>
-#include <thread>
-
-#include "zmqpp/context.hpp"
-#include "zmqpp/message.hpp"
-#include "zmqpp/actor.hpp"
-#include "zmqpp/poller.hpp"
-#include "zmqpp/curve.hpp"
-#include "zmqpp/zap_request.hpp"
-#include "zmqpp/auth.hpp"
 #include <iostream>
 #include <string>
-#include <netinet/in.h>
+#include <thread>
+
+#include <boost/test/unit_test.hpp>
+
+#include "zmqpp/actor.hpp"
+#include "zmqpp/auth.hpp"
+#include "zmqpp/context.hpp"
+#include "zmqpp/curve.hpp"
+#include "zmqpp/endian.hpp"
+#include "zmqpp/message.hpp"
+#include "zmqpp/poller.hpp"
+#include "zmqpp/zap_request.hpp"
 
 BOOST_AUTO_TEST_SUITE( auth )
 
 // The whole test suite should be ran only against libzmq > 3
 // Also, for some reason those tests fail against zmq4.0.x
-#if ((ZMQ_VERSION_MAJOR > 3) &&  !(ZMQ_VERSION_MAJOR == 4 && ZMQ_VERSION_MINOR == 0))
+#if ((ZMQ_VERSION_MAJOR > 3) && !(ZMQ_VERSION_MAJOR == 4 && ZMQ_VERSION_MINOR == 0))
 
 BOOST_AUTO_TEST_CASE(grasslands)
 {
+    
     // initialize the 0MQ context
     zmqpp::context context;
 
@@ -49,7 +50,7 @@ BOOST_AUTO_TEST_CASE(grasslands)
     zmqpp::message response;
     client.receive(response);
 
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 BOOST_AUTO_TEST_CASE(strawhouse)
@@ -88,7 +89,7 @@ BOOST_AUTO_TEST_CASE(strawhouse)
     zmqpp::message response;
     client.receive(response);
     
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 BOOST_AUTO_TEST_CASE(woodhouse)
@@ -134,7 +135,7 @@ BOOST_AUTO_TEST_CASE(woodhouse)
     std::string user_id;
     BOOST_CHECK_EQUAL(true, response.get_property("User-Id", user_id));
     BOOST_CHECK_EQUAL("admin", user_id);
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 BOOST_AUTO_TEST_CASE(stonehouse)
@@ -202,7 +203,7 @@ BOOST_AUTO_TEST_CASE(stonehouse)
     std::string user_id;
     BOOST_CHECK_EQUAL(true, response.get_property("User-Id", user_id));
     BOOST_CHECK_EQUAL(client_keypair.public_key, user_id);
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 BOOST_AUTO_TEST_CASE(custom_metadata)
@@ -233,30 +234,25 @@ BOOST_AUTO_TEST_CASE(custom_metadata)
     zmqpp::message response;
     client.receive(response);
 
-    BOOST_CHECK_EQUAL("1.0", response.get(0));
-    BOOST_CHECK_EQUAL("0001", response.get(1));
-    BOOST_CHECK_EQUAL("200", response.get(2));
-    BOOST_CHECK_EQUAL("OK", response.get(3));
-    BOOST_CHECK_EQUAL("admin", response.get(4));
+    BOOST_CHECK_EQUAL("1.0", response.get<std::string>(0));
+    BOOST_CHECK_EQUAL("0001", response.get<std::string>(1));
+    BOOST_CHECK_EQUAL("200", response.get<std::string>(2));
+    BOOST_CHECK_EQUAL("OK", response.get<std::string>(3));
+    BOOST_CHECK_EQUAL("admin", response.get<std::string>(4));
 
     // the last frame contains ZMTP/3.0 encoded metadata
-    const void *metadata;
-    response.get(metadata, 5);
-
-    const uint8_t *chars = reinterpret_cast<const uint8_t*>(metadata);
+    const uint8_t* byte_ptr = response.get<const uint8_t*>(5);
 
     for (size_t i = 0; i < pairs.size(); ++i) {
-        const auto name_size = *chars;
-        chars += 1;
+        const uint8_t name_size = *byte_ptr++;
+        const std::string name(byte_ptr, byte_ptr + name_size);
+        byte_ptr += name_size;
 
-        const std::string name(chars, chars + name_size);
-        chars += name_size;
+        const uint32_t value_size = zmqpp::from_be<uint32_t>(byte_ptr);
+        byte_ptr += 4;
 
-        const auto value_size = ntohl(*reinterpret_cast<const uint32_t*>(chars));
-        chars += 4;
-
-        const std::string value(chars, chars + value_size);
-        chars += value_size;
+        const std::string value(byte_ptr, byte_ptr + value_size);
+        byte_ptr += value_size;
 
         BOOST_CHECK_EQUAL(1, pairs.count(name));
         BOOST_CHECK_EQUAL(pairs.at(name), value);
@@ -325,7 +321,7 @@ BOOST_AUTO_TEST_CASE(ironhouse)
     zmqpp::message response;
     client.receive(response);
 
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 /* 
@@ -347,7 +343,7 @@ static void client_task(zmqpp::curve::keypair& client_keypair, std::string serve
     zmqpp::message response;
     client.receive(response);
 
-    BOOST_CHECK_EQUAL("Hello", response.get(0));
+    BOOST_CHECK_EQUAL("Hello", response.get<std::string>(0));
 }
 
 /* 

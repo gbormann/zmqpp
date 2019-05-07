@@ -14,16 +14,18 @@
  * \author Prem Shankar Kumar (\@meprem)
  */
 
-#include "zap_request.hpp"
-#include "message.hpp"
-#include "socket.hpp"
-#include "z85.hpp"
-#include "byte_ordering.hpp"
+#include <iomanip>
+#include <iostream>
 #include <unordered_map>
 
 #ifndef _WIN32
 #include <netinet/in.h>
 #endif
+#include "zap_request.hpp"
+#include "message.hpp"
+#include "socket.hpp"
+#include "z85.hpp"
+#include "byte_ordering.hpp"
 
 #if (ZMQ_VERSION_MAJOR > 3)
 
@@ -33,9 +35,9 @@ namespace zmqpp
 /*!
  * Receive a ZAP valid request from the handler socket
  */
-zap_request::zap_request(socket& handler, bool logging) :
-  zap_socket(handler),
-  verbose(logging)
+zap_request::zap_request(socket& handler, bool logging)
+  : zap_socket(handler),
+    verbose(logging)
 {
     message msg;
     zap_socket.receive(msg);
@@ -44,26 +46,26 @@ zap_request::zap_request(socket& handler, bool logging) :
         return;     // Interrupted
 
     // Get all standard frames off the handler socket
-    version   = msg.get(0);
-    sequence  = msg.get(1);
-    domain    = msg.get(2);
-    address   = msg.get(3);
-    identity  = msg.get(4);
-    mechanism = msg.get(5); 
+    version   = msg.get<std::string>(0);
+    sequence  = msg.get<std::string>(1);
+    domain    = msg.get<std::string>(2);
+    address   = msg.get<std::string>(3);
+    identity  = msg.get<std::string>(4);
+    mechanism = msg.get<std::string>(5); 
 
-    // If the version is wrong, we're linked with a bogus libzmq, so die
+    // If the version is wrong, we are linked with a bogus libzmq, so die
     assert(version == "1.0");
 
     // Get mechanism-specific frames
     if("PLAIN" == mechanism) {
-        username = msg.get(6); 
-        password = msg.get(7);             
+        username = msg.get<std::string>(6); 
+        password = msg.get<std::string>(7);             
 
     } else if("CURVE" == mechanism) {
-        client_key = z85::encode(msg.get(6)); 
+        client_key = z85::encode(msg.get<std::string>(6)); 
 
     } else if("GSSAPI" == mechanism) {
-        principal = msg.get(6);
+        principal = msg.get<std::string>(6);
     }
 
     if (verbose) {
@@ -110,12 +112,9 @@ std::vector<std::uint8_t> zap_request::serialize_metadata(
         // name
         std::copy(pair.first.begin(), pair.first.end(), std::back_inserter(metadata));
 
-        // value length (4 OCTETs in network byte order)
+        // value length (4 OCTETs in Big Endian byte order)
         assert(pair.second.length() <= UINT32_MAX); // hm, really?
-        auto value_length = HOST_TO_BIG_ENDIAN_32(static_cast<uint32_t>(pair.second.length()));
-        std::copy(reinterpret_cast<uint8_t*>(&value_length),
-                  reinterpret_cast<uint8_t*>(&value_length) + 4,
-                  std::back_inserter(metadata));
+        to_be(static_cast<uint32_t>(pair.second.length()), std::back_inserter(metadata));
 
         // value
         std::copy(pair.second.begin(), pair.second.end(), std::back_inserter(metadata));

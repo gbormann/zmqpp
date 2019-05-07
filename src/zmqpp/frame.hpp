@@ -34,15 +34,18 @@ class ZMQPP_EXPORT frame
 {
 public:
 	frame();
-	frame(size_t const size);
-	frame(void const* part, size_t const size);
-	frame(void* part, size_t const size, zmq_free_fn *ffn, void *hint);
+	frame(std::size_t size);
+	/** copy interface */
+	frame(void const* part, std::size_t size);
+	/** no-copy interface */
+	frame(void* part, std::size_t size, zmq_free_fn *ffn, void *hint);
 
 	~frame();
 
 	bool is_sent() const { return _sent; }
 	void const* data() const { return zmq_msg_data( const_cast<zmq_msg_t*>(&_msg) ); }
-	size_t size() const { return zmq_msg_size( const_cast<zmq_msg_t*>(&_msg) ); }
+	std::size_t size() const { return zmq_msg_size( const_cast<zmq_msg_t*>(&_msg) ); }
+	uint8_t* bytes() { return static_cast<uint8_t*>(zmq_msg_data(&_msg)); }
 
 	void mark_sent() { _sent = true; }
 	zmq_msg_t& msg() { return _msg; }
@@ -56,10 +59,6 @@ public:
 private:
 	bool _sent;
 	zmq_msg_t _msg;
-
-	// Disable implicit copy support, code must request a copy to clone
-	frame(frame const&) NOEXCEPT ZMQPP_EXPLICITLY_DELETED;
-	frame& operator=(frame const&) NOEXCEPT ZMQPP_EXPLICITLY_DELETED;
 };
 
 } // namespace zmqpp

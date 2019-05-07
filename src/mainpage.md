@@ -32,10 +32,10 @@ additional features:
 Examples
 --------
 
-zmqpp comes a few examples. These can be found [here](https://github.com/zeromq/zmqpp/tree/develop/examples).
+zmqpp comes with a few examples. These can be found [here](https://github.com/zeromq/zmqpp/tree/develop/examples).
 
 Reading the documentation is a good way to start learning about zmqpp.
-The most important classes that you will likely use are thoses:
+The most important classes that you will likely use are these:
 
 + [Context](@ref zmqpp::context).
 + [Socket](@ref zmqpp::socket).

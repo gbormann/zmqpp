@@ -91,13 +91,13 @@ BOOST_AUTO_TEST_CASE(child_thread_wait_for_stop)
         {
             if (msg.is_signal())
             {
-                msg.get(sig, 0);
+                sig = msg.get<zmqpp::signal>(0);
                 if (sig == zmqpp::signal::stop)
                     break;
             }
             zmqpp::message rep("hello");
             pipe->send(rep);
-            count++;
+            ++count;
         }
         zmqpp::message final_res;
         final_res << count;
@@ -157,18 +157,18 @@ static bool count_echo_server(zmqpp::socket * pipe, zmqpp::context *context, std
         {
             router.receive(msg);
             router.send(msg);
-            count++;
+            ++count;
         }
         if (p.has_input(*pipe))
         {
             pipe->receive(msg);
             if (msg.is_signal())
             {
-                msg.get(sig, 0);
+                sig = msg.get<zmqpp::signal>(0);
                 if (sig == zmqpp::signal::stop)
                     break;
             }
-            if (msg.get(0) == "GET_COUNT")
+            if (msg.get<std::string>(0) == "GET_COUNT")
             {
                 zmqpp::message msg_count(count);
                 pipe->send(msg_count);
@@ -202,7 +202,7 @@ BOOST_AUTO_TEST_CASE(test_actor_stop_failed)
             if (pipe->wait() == zmqpp::signal::stop)
                 break;
         }
-        // for some reason let's say we failed to properly stopped the task.
+        // for some reason let's say we failed to properly stop the task.
         return false;
     };
 
