@@ -57,7 +57,6 @@ public:
 	frame copy() const;
 
 private:
-	bool _sent;
 	zmq_msg_t _msg;
 };
 
