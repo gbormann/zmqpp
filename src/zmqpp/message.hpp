@@ -289,8 +289,18 @@ public:
 		add_nocopy(const_cast<Type*>(content), data_size, ffn, hint);
 	}
 
-	// Stream styles
-	void reset_read_cursor() { _read_cursor = 0; }
+#if (ZMQ_VERSION_MAJOR >= 4) && ((ZMQ_VERSION_MAJOR >= 2) && ZMQ_BUILD_DRAFT_API)
+	/**
+	 * Specify a group for the message to be sent via radio
+	 *
+	 * \param group the group that the message belongs to
+	 * \return true if group was set successfully, false if there are no parts or not set successfully
+	 */
+	bool set_group(const std::string& group);
+#endif
+
+	// Stream reader style
+	void reset_read_cursor();
 
 	// Making them friend helps ADL
 	// reader

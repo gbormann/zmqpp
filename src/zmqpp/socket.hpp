@@ -276,7 +276,7 @@ public:
 	 * \return true if signal received, false if it would have blocked or it timed out.
 	 */
 	bool receive(signal &sig, bool dont_block = false);
-				
+
 	/**
 	 * Sends the byte data held by the string as the next message part.
 	 *
@@ -573,6 +573,16 @@ public:
 	 * \return the signal.
 	 */
 	signal wait();
+
+#if (ZMQ_VERSION_MAJOR >= 4) && ((ZMQ_VERSION_MAJOR >= 2) && ZMQ_BUILD_DRAFT_API)
+	/**
+	 * Specify a group for a ZMQ_DISH socket to join
+	 *
+	 * \param group the group to join
+	 * \return true if joined successfully
+	 */
+	bool join(const std::string& group);
+#endif
 
 	/**
 	 * Move constructor

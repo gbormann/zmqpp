@@ -27,7 +27,6 @@ namespace zmqpp
 {
 
 const int max_socket_option_buffer_size = 256;
-const int max_stream_buffer_size = 4096;
 
 socket::socket(const context& context, socket_type const type)
 	: _socket(nullptr)
@@ -342,7 +341,7 @@ bool socket::receive_raw(char* buffer, size_t& length, int const flags /* = NORM
 
 	if(result >= 0)
 	{
-		length = std::min(length, zmq_msg_size(&_recv_buffer));
+		length = (std::min<size_t>)(length, zmq_msg_size(&_recv_buffer));
 		memcpy(buffer, zmq_msg_data(&_recv_buffer), length);
 
 		return true;
@@ -372,6 +371,17 @@ bool socket::has_more_parts() const
 {
 	return get<bool>(socket_option::receive_more);
 }
+
+// Dish socket join
+#if (ZMQ_VERSION_MAJOR >= 4) && ((ZMQ_VERSION_MAJOR >= 2) && ZMQ_BUILD_DRAFT_API)
+bool socket::join(const std::string& group)
+{
+	assert(_type == socket_type::dish);
+
+	const auto result = zmq_join(_socket, group.c_str());
+	return result >= 0;
+}
+#endif
 
 
 // Set socket options for different types of option
@@ -839,6 +849,12 @@ void socket::get(socket_option const option, std::string& value) const
 	switch(option)
 	{
 	case socket_option::identity:
+		if(0 != zmq_getsockopt(_socket, static_cast<int>(option), buffer.data(), &size))
+		{
+			throw zmq_internal_exception();
+		}
+		value.assign(buffer.data(), size);
+		break;
 #if (ZMQ_VERSION_MAJOR > 3) || ((ZMQ_VERSION_MAJOR == 3) && (ZMQ_VERSION_MINOR >= 2))
 	case socket_option::last_endpoint:
 #endif
@@ -859,8 +875,7 @@ void socket::get(socket_option const option, std::string& value) const
 		{
 			throw zmq_internal_exception();
 		}
-
-		value.assign(buffer.data(), size > 0 ? size-1 : 0);
+		value = buffer.data();
 		break;
 	default:
 		throw exception("attempting to get a non string option with a string value");

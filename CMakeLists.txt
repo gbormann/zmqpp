@@ -12,6 +12,7 @@
 
 
 cmake_minimum_required(VERSION 2.8.12)
+project(zmqpp)
 enable_testing()
 
 # prepare C++11
@@ -60,7 +61,7 @@ set( ZEROMQ_LIB_DIR       ""      CACHE PATH "The library directory for libzmq" 
 set( ZEROMQ_INCLUDE_DIR   ""      CACHE PATH "The include directory for ZMQ" )
 
 # Build flags
-set( IS_TRAVIS_CI_BUILD   true    CACHE bool "Defines TRAVIS_CI_BUILD - Should the tests avoid running cases where memory is scarce." )
+set( IS_TRAVIS_CI_BUILD   true    CACHE BOOL "Defines TRAVIS_CI_BUILD - Should the tests avoid running cases where memory is scarce." )
 
 # Find zmq.h and add its dir to the includes
 find_path(ZEROMQ_INCLUDE zmq.h PATHS ${ZEROMQ_INCLUDE_DIR})
@@ -140,12 +141,16 @@ if (ZMQPP_BUILD_SHARED)
 endif() # ZMQPP_BUILD_SHARED
 
 # We need to link zmqpp to ws2_32 on windows for the implementation of winsock2.h
-if(WIN32)
-	target_link_libraries(zmqpp ws2_32)
+if(WIN32 AND ZMQPP_BUILD_SHARED)
+    target_link_libraries(zmqpp ws2_32)
 endif() # WIN32
 
 include(GenerateExportHeader)
-generate_export_header(zmqpp)
+if(ZMQPP_BUILD_SHARED)
+  generate_export_header(zmqpp)
+elseif(ZMQPP_BUILD_STATIC)
+  generate_export_header(zmqpp-static BASE_NAME zmqpp)
+endif()
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 
 # Examples

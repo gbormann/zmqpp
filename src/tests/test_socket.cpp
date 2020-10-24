@@ -513,6 +513,31 @@ BOOST_AUTO_TEST_CASE( test_signal_block_noblock )
     BOOST_CHECK_EQUAL(true, p2.receive(sig, true)); //noblock
 }
 
+#if (ZMQ_VERSION_MAJOR >= 4)
+BOOST_AUTO_TEST_CASE( simple_stream )
+{
+	zmqpp::context context;
+
+	zmqpp::socket s1(context, zmqpp::socket_type::stream);
+	zmqpp::socket s2(context, zmqpp::socket_type::stream);
+
+	s1.bind("inproc://test");
+	s2.connect("inproc://test");
+
+	std::string identity;
+	s2.get(zmqpp::socket_option::identity, identity);
+	zmqpp::message request;
+	request << identity;
+	request << "Hello world!";
+	BOOST_CHECK(s2.send(request));
+
+	zmqpp::message response;
+	BOOST_CHECK(s1.receive(response));
+	BOOST_CHECK(response.parts() == 2);
+	BOOST_CHECK(response.get(1) == "Hello world!");
+}
+#endif
+
 #ifndef TRAVIS_CI_BUILD //do not run when building on travis-ci (this cause oom error and kill the test process)
 BOOST_AUTO_TEST_CASE( sending_large_messages_string )
 {
@@ -554,7 +579,8 @@ BOOST_AUTO_TEST_CASE( test_simple_monitor )
 {
     zmqpp::context ctx;
     zmqpp::socket server(ctx, zmqpp::socket_type::push);
-    server.bind("tcp://*:55443");
+    server.bind("tcp://*:0");
+    const std::string endpoint = server.get<std::string>(zmqpp::socket_option::last_endpoint);
 
     server.monitor("inproc://test_monitor", zmqpp::event::all);
 
@@ -562,7 +588,7 @@ BOOST_AUTO_TEST_CASE( test_simple_monitor )
     monitor.connect("inproc://test_monitor");
 
     zmqpp::socket client(ctx, zmqpp::socket_type::pull);
-    client.connect("tcp://localhost:55443");
+    client.connect(endpoint);
 
     // Receive event accepted
     {
@@ -575,20 +601,20 @@ BOOST_AUTO_TEST_CASE( test_simple_monitor )
         uint16_t ev = *(reinterpret_cast<const uint16_t *>(ptr));
         // uint32_t value = *(reinterpret_cast<const uint32_t *>(ptr + 2));
         BOOST_CHECK_EQUAL( zmqpp::event::accepted, ev );
-        BOOST_CHECK_EQUAL("tcp://0.0.0.0:55443", msg_in.get<std::string>(1));
+        BOOST_CHECK_EQUAL("tcp://0.0.0.0:0", msg_in.get<std::string>(1));
         // value is the underlying file descriptor. we cannot check its value against anything meaningful
 #else
         zmq_event_t const* event = static_cast<zmq_event_t const*>( msg_in.raw_data(0) );
         BOOST_CHECK_EQUAL( zmqpp::event::accepted, event->event );
         BOOST_CHECK_EQUAL( 0, event->value );
-        BOOST_CHECK_EQUAL("tcp://0.0.0.0:55443", msg_in.get<std::string>(1));
+        BOOST_CHECK_EQUAL("tcp://0.0.0.0:0", msg_in.get<std::string>(1));
 #endif
     }
 
     server.unmonitor();
 
     zmqpp::socket client2(ctx, zmqpp::socket_type::pull);
-    client2.connect("tcp://localhost:55443");
+    client2.connect(endpoint);
 
     // Receive event monitor_stopped
     {
